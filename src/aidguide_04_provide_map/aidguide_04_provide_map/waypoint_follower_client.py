@@ -39,8 +39,10 @@ class WaypointFollowerClient(Node):
         pose1 = PoseStamped()
         pose1.header.frame_id = 'map'
         pose1.header.stamp = self.get_clock().now().to_msg()
-        pose1.pose.position.x = 1.261
-        pose1.pose.position.y = -2.611
+       # pose1.pose.position.x = 1.261
+        #pose1.pose.position.y = -2.611
+        pose1.pose.position.x = 0.5
+        pose1.pose.position.y = 0.0
         pose1.pose.position.z = 0.0
         pose1.pose.orientation.w = 1.0
         waypoints.append(pose1)

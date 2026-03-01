@@ -1,6 +1,6 @@
 mundo :
 rm -rf build install log
-cd ~/tfg/aidguide_04-main/aidguide_04_ws
+cd ~/tfg_mimi_2026
 
 colcon build --packages-select aidguide_sim
 source install/setup.bash

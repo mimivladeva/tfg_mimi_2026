@@ -39,6 +39,7 @@ setup(
     entry_points={
         'console_scripts': [
             'waypoint_follower = aidguide_04_provide_map.waypoint_follower_client:main',
+            'waypoint_follower_client = aidguide_04_provide_map.waypoint_follower_client:main',
              'punto_inicial = aidguide_04_provide_map.punto_inicial:main',
         ],
     },
