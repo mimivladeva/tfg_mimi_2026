@@ -12,7 +12,8 @@ from action_msgs.msg import GoalStatus
 
 SPEED_NORMAL = 0.18
 SPEED_SLOW = 0.10
-TURN_ANGLE = 0.20
+SPEED_FAST = 0.24
+TURN_ANGLE = 0.35
 
 
 def yaw_to_quat(yaw: float) -> Quaternion:
@@ -60,13 +61,19 @@ class Nav2Supervisor(Node):
         self.goal_start_index = 0
         self.enable_timer = None
 
+        # estados 
+        self.state_pub = self.create_publisher(String, '/nav/state', 10)
+
     def log_state_change(self, new_state: str, reason: str):
         old = self.state
         self.state = new_state
-        self.get_logger().info(f'Estado: {old} -> {new_state} | motivo: {reason}')
+        #self.get_logger().info(f'Estado: {old} -> {new_state} | motivo: {reason}')
+        msg = String()
+        msg.data = new_state
+        self.state_pub.publish(msg)
 
     def define_waypoints(self):
-        pts = [(0.5, 0.0), (1.0, 0.0), (1.5, 0.0), (2.0 ,0.0)]
+        pts = [(-0.5, 0.0), (0.0, 0.0), (0.5, 0.0), (1.0, 0.0), (1.5, 0.0), (2.0 ,0.0)]
         #pts = [(1.0, 0.0), (1.5, 0.15), (2.0, 0.1), (2.3, 0.0)]
         #pts = [(1.0, 0.0),(1.5, 0.0),(2.1, 0.15),(2.3, 0.0)]
         poses = []
@@ -163,13 +170,14 @@ class Nav2Supervisor(Node):
         self.goal_handle = gh
         self.mission_started = True
         self.log_state_change('NAVIGATING', 'goal aceptado')
-        # 🔴 activar comandos con delay
-        # cancelar timer anterior si existe
+
         if self.enable_timer is not None:
             self.enable_timer.cancel()
             self.enable_timer = None
-        self.commands_enabled = False  # importante reset
-        self.enable_timer = self.create_timer(2.0, self.enable_commands)
+        #self.commands_enabled = False  # importante reset
+        if not self.commands_enabled:
+            if self.enable_timer is None:
+                self.enable_timer = self.create_timer(2.0, self.enable_commands)
 
         gh.get_result_async().add_done_callback(self.follow_result_cb)
 
@@ -214,14 +222,18 @@ class Nav2Supervisor(Node):
             self.pending_resume_after_spin = False
             self.commands_enabled = False
             self.mission_started = False
-            #self.abort_happened = True   # 🔴 IMPORTANTE
-             # 🔴 IMPORTANTE: reanudar desde donde estaba
-            next_wp = max(0, self.resume_index)
+            #next_wp = max(0, self.resume_index)
+            next_wp = min(len(self.waypoints)-1, self.resume_index + 1)
             self.get_logger().warn(f'⚠️ Abort → reanudando desde waypoint {next_wp}')
             self.start_mission_from(next_wp)
             #self.log_state_change('IDLE', 'abort real')
 
         elif status == GoalStatus.STATUS_CANCELED:
+            # if self.expected_cancel:
+            #     self.get_logger().info('Cancel esperado (STOP o TURN)')
+            #     self.expected_cancel = False 
+            # else:
+            #     self.log_state_change('IDLE', 'cancelación inesperada')
             if not self.expected_cancel:
                 self.log_state_change('IDLE', 'cancelación inesperada')
 
@@ -233,6 +245,8 @@ class Nav2Supervisor(Node):
         self.expected_cancel = True
         future = self.goal_handle.cancel_goal_async()
         future.add_done_callback(lambda _: on_done())
+
+    # ===========SPIN CODE ================
 
     def do_spin(self, angle):
         goal = Spin.Goal()
@@ -282,6 +296,9 @@ class Nav2Supervisor(Node):
         self.active_command = None
 
     def event_cb(self, msg):
+        # 🔴 PRIMERO: si ya terminó → NO HACER NADA (ni log) NUEVO
+        if self.mission_completed or self.state == 'COMPLETED':
+            return
         cmd = msg.data.strip().upper()
         self.get_logger().info(f'📥 Comando recibido: {cmd}') 
 
@@ -314,13 +331,14 @@ class Nav2Supervisor(Node):
             self.set_speed(SPEED_NORMAL)
             return
 
-        if cmd == 'STOP':
-            # if self.begin_command('STOP'):
-            #     self.cancel_navigation(lambda: self.log_state_change('PAUSED', 'STOP'))
-            # return
-            self.set_speed(0.0)
+        if cmd == 'FAST':
+            self.set_speed(SPEED_FAST)
             return
 
+        if cmd == 'STOP':
+            self.set_speed(0.0)
+            return
+            
         if cmd in ['TURN_LEFT', 'TURN_RIGHT']:
             if self.state != 'NAVIGATING':
                 self.get_logger().warn(f'⛔ Ignorado {cmd}: no está navegando')

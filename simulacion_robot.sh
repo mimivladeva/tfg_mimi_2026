@@ -12,9 +12,7 @@ pkill -f amcl 2>/dev/null || true
 pkill -f map_server 2>/dev/null || true
 pkill -f lifecycle_manager 2>/dev/null || true
 pkill -f nav2_supervisor 2>/dev/null || true
-pkill -f screen 2>/dev/null || true
-pkill -f minicom 2>/dev/null || true
-
+pkill -f gz 2>/dev/null || true
 
 sleep 2
 
@@ -29,13 +27,39 @@ fi
 echo "✅ Cargando entorno..."
 source "$SETUP"
 
-# ================================
-# 1. MAPA + LOCALIZACIÓN
-# ================================
-echo "🗺️ Lanzando mapa y AMCL..."
+export TURTLEBOT3_MODEL=burger
+export use_sim_time=true
+
+# =================================
+# 1. SIMULACIÓN (GAZEBO)
+# =================================
+echo "🌍 Lanzando simulación (mundo)..."
+
 gnome-terminal -- bash -c "
 source $SETUP
-ros2 launch aidguide_04_provide_map aidguide_04_provide_map.launch.py
+export TURTLEBOT3_MODEL=burger
+ros2 launch aidguide_sim sim.launch.py
+exec bash
+"
+
+echo "⏳ Esperando que Gazebo publique /scan..."
+
+until ros2 topic list 2>/dev/null | grep -q "/scan"; do
+  sleep 1
+done
+
+echo "✅ Simulación lista"
+
+sleep 3
+
+# =================================
+# 2. MAPA + LOCALIZACIÓN
+# =================================
+echo "🗺️ Lanzando mapa y AMCL..."
+
+gnome-terminal -- bash -c "
+source $SETUP
+ros2 launch aidguide_04_provide_map aidguide_04_provide_map_sim.launch.py use_sim_time:=true
 exec bash
 "
 
@@ -47,6 +71,7 @@ done
 sleep 3
 
 echo "📍 Publicando pose inicial..."
+
 ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{
 header: {frame_id: map},
 pose: {
@@ -64,66 +89,49 @@ pose: {
   ]
 }}"
 
-echo "⏳ Esperando datos reales de /amcl_pose..."
-
+echo "⏳ Esperando /amcl_pose..."
 until ros2 topic echo /amcl_pose --once >/dev/null 2>&1; do
   sleep 1
 done
 
 echo "✅ Localización correcta"
 
-# ================================
-# 2. ESPERAR TF REAL (robusto)
-# ================================
+# =================================
+# 3. TF
+# =================================
 echo "⏳ Esperando TF map -> base_link..."
 until ros2 run tf2_ros tf2_echo map base_link 2>/dev/null | grep -q "Translation"; do
   sleep 1
 done
+
 echo "✅ TF disponible"
 
-# ================================
-# 3. NAV2 (NAVEGACIÓN)
-# ================================
-echo "🚀 Lanzando navegación..."
+# =================================
+# 4. NAV2
+# =================================
+echo "🚀 Esperando Nav2..."
 
-
-echo "⏳ Esperando bt_navigator..."
 until ros2 node list 2>/dev/null | grep -q "/bt_navigator"; do
   sleep 1
 done
 
-echo "⏳ Esperando acción follow_waypoints..."
 until ros2 action list 2>/dev/null | grep -q "follow_waypoints"; do
   sleep 1
 done
 
-echo "✅ Nav2 completamente operativo"
+echo "✅ Nav2 listo"
 
 sleep 2
 
-
-
+# =================================
+# 5. SUPERVISOR
+# =================================
 echo "🧠 Lanzando supervisor Nav2..."
+
 gnome-terminal -- bash -c "
 source $SETUP
 ros2 run aidguide_04_esp_bridge nav2_supervisor
 exec bash
 "
 
-sleep 2
-
-# ================================
-# 4. TEST DE COMPORTAMIENTO
-# ================================
-echo "⏳ Esperando a que el robot empiece a moverse..."
-sleep 5
-
-echo "🧪 Lanzando test de comportamiento..."
-gnome-terminal -- bash -c "
-source $SETUP
-ros2 run aidguide_04_esp_bridge test_nav_behavior
-exec bash
-"
-
-
-echo "🎉 Sistema listo"
+echo "🎉 SISTEMA COMPLETO EN SIMULACIÓN"

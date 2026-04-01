@@ -10,7 +10,7 @@ amcl:
     resample_interval: 1
     min_particles: 500
     max_particles: 2000
-    use_sim_time: false
+    use_sim_time: true
     base_frame_id: base_link
     odom_frame_id: odom
     scan_topic: scan
@@ -18,12 +18,12 @@ amcl:
 
 bt_navigator:
   ros__parameters:
-    use_sim_time: false
+    use_sim_time: true
     transform_tolerance: 0.5
 
 planner_server:
   ros__parameters:
-    use_sim_time: false
+    use_sim_time: true
     transform_tolerance: 0.5
     planner_plugins: ["GridBased"]
     GridBased:
@@ -32,8 +32,8 @@ planner_server:
 
 controller_server:
   ros__parameters:
-    use_sim_time: false
-    enable_stamped_cmd_vel: true
+    use_sim_time: true
+    enable_stamped_cmd_vel: false
     controller_frequency: 20.0
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.001
@@ -80,8 +80,8 @@ controller_server:
 
 behavior_server:
   ros__parameters:
-    use_sim_time: false
-    enable_stamped_cmd_vel: true
+    use_sim_time: true
+    enable_stamped_cmd_vel: false
     transform_tolerance: 0.5
     costmap_topic: local_costmap/costmap_raw
     footprint_topic: local_costmap/published_footprint
@@ -101,7 +101,7 @@ behavior_server:
 global_costmap:
   global_costmap:
     ros__parameters:
-      use_sim_time: false
+      use_sim_time: true
       transform_tolerance: 0.5
       global_frame: map
       robot_base_frame: base_link
@@ -132,7 +132,7 @@ global_costmap:
 local_costmap:
   local_costmap:
     ros__parameters:
-      use_sim_time: false
+      use_sim_time: true
       transform_tolerance: 0.5
       global_frame: odom
       robot_base_frame: base_link
@@ -160,5 +160,5 @@ local_costmap:
 
 waypoint_follower:
   ros__parameters:
-    use_sim_time: false
+    use_sim_time: true
     transform_tolerance: 0.5
