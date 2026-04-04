@@ -8,6 +8,9 @@ from geometry_msgs.msg import PoseStamped, Quaternion
 from nav2_msgs.action import FollowWaypoints, Spin
 from nav2_msgs.msg import SpeedLimit
 from action_msgs.msg import GoalStatus
+from std_msgs.msg import Bool
+from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
+from geometry_msgs.msg import Twist
 
 
 SPEED_NORMAL = 0.18
@@ -64,6 +67,16 @@ class Nav2Supervisor(Node):
         # estados 
         self.state_pub = self.create_publisher(String, '/nav/state', 10)
 
+        # 🔴 QoS ESTOP (persistente)
+        qos_estop = QoSProfile(depth=1) 
+        qos_estop.durability = DurabilityPolicy.TRANSIENT_LOCAL
+        qos_estop.reliability = ReliabilityPolicy.RELIABLE
+        # 🔴 subscriber ESTOP global
+        self.estop_sub = self.create_subscription(
+            Bool, '/emergency_stop', self.estop_cb, qos_estop)
+            # 🔴 publisher directo de velocidad (seguridad)
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+
     def log_state_change(self, new_state: str, reason: str):
         old = self.state
         self.state = new_state
@@ -73,7 +86,8 @@ class Nav2Supervisor(Node):
         self.state_pub.publish(msg)
 
     def define_waypoints(self):
-        pts = [(-0.5, 0.0), (0.0, 0.0), (0.5, 0.0), (1.0, 0.0), (1.5, 0.0), (2.0 ,0.0)]
+        pts = [(-0.5, 0.0), (0.0, 0.0), (0.5, 0.0), (1.0, 0.0), (1.5, 0.0)]
+        #pts = [(-0.5, 0.0), (0.0, 0.0), (0.5, 0.0), (1.0, 0.0), (1.5, 0.0), (2.0 ,0.0)]
         #pts = [(1.0, 0.0), (1.5, 0.15), (2.0, 0.1), (2.3, 0.0)]
         #pts = [(1.0, 0.0),(1.5, 0.0),(2.1, 0.15),(2.3, 0.0)]
         poses = []
@@ -177,7 +191,7 @@ class Nav2Supervisor(Node):
         #self.commands_enabled = False  # importante reset
         if not self.commands_enabled:
             if self.enable_timer is None:
-                self.enable_timer = self.create_timer(2.0, self.enable_commands)
+                self.enable_timer = self.create_timer(1.0, self.enable_commands)
 
         gh.get_result_async().add_done_callback(self.follow_result_cb)
 
@@ -295,11 +309,56 @@ class Nav2Supervisor(Node):
         self.command_busy = False
         self.active_command = None
 
+    # def handle_estop(self):
+    #     self.get_logger().error('🛑 ESTOP ACTIVADO')
+    #     self.set_speed(0.0)
+
+    # # cancelar navegación si existe
+    #     if self.goal_handle is not None:
+    #         try:
+    #             self.goal_handle.cancel_goal_async()
+    #         except:
+    #             pass
+    #     self.command_busy = False
+    #     self.pending_resume_after_spin = False
+    #     self.expected_cancel = False
+    #     self.commands_enabled = False
+    #     self.mission_started = False
+    #     self.log_state_change('ESTOP', 'emergency stop')
+
+
+    def estop_cb(self, msg):
+        if not msg.data:
+            return
+        self.get_logger().error('🛑 ESTOP GLOBAL RECIBIDO')
+        # parar velocidad NAV2
+        self.set_speed(0.0)
+        # 🔴 parada física directa (MUY IMPORTANTE)
+        twist = Twist()
+        self.cmd_vel_pub.publish(twist)
+        # cancelar navegación si existe
+        if self.goal_handle is not None:
+            try:
+                self.goal_handle.cancel_goal_async()
+            except:
+                pass
+        self.command_busy = False
+        self.pending_resume_after_spin = False
+        self.expected_cancel = False
+        self.commands_enabled = False
+        self.mission_started = False
+        self.mission_completed = True
+        self.log_state_change('ESTOP', 'emergency')
+
     def event_cb(self, msg):
         # 🔴 PRIMERO: si ya terminó → NO HACER NADA (ni log) NUEVO
         if self.mission_completed or self.state == 'COMPLETED':
             return
         cmd = msg.data.strip().upper()
+      
+        # if cmd == 'ESTOP':
+        #     self.handle_estop()
+        #     return
         self.get_logger().info(f'📥 Comando recibido: {cmd}') 
 
         if self.mission_completed or self.state == 'COMPLETED':
@@ -313,12 +372,12 @@ class Nav2Supervisor(Node):
             self.get_logger().warn('⛔ Ignorado: comandos deshabilitados')
             return
 
-        if cmd == 'ESTOP':
-            self.command_busy = False
+        # if cmd == 'ESTOP':
+        #     self.command_busy = False
 
-            if self.begin_command('ESTOP'):
-                self.cancel_navigation(lambda: self.log_state_change('ESTOP', 'emergency'))
-            return
+        #     if self.begin_command('ESTOP'):
+        #         self.cancel_navigation(lambda: self.log_state_change('ESTOP', 'emergency'))
+        #     return
 
         if self.command_busy:
             return

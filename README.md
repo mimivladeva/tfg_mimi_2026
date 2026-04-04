@@ -6,6 +6,11 @@ Sistema de navegación autónoma basado en ROS 2 (Nav2) con control mediante ESP
 ## 📡 1. Conexión con el robot
 
 ssh ubuntu@192.168.18.107
+export ROS_DOMAIN_ID=12
+echo $ROS_DOMAIN_ID
+
+
+
 export TURTLEBOT3_MODEL=burger
 ros2 launch turtlebot3_bringup robot.launch.py
 
@@ -13,10 +18,19 @@ ros2 launch turtlebot3_bringup robot.launch.py
 
 ## 🔌 2. Servicio ESP32 UART
 
+ssh ubuntu@192.168.18.107
+export ROS_DOMAIN_ID=12
+echo $ROS_DOMAIN_ID
+
 cd ~/esp_uart_ws
 
 colcon build --symlink-install
 source install/setup.bash
+
+
+source /opt/ros/jazzy/setup.bash
+source ~/esp_uart_ws/install/setup.bash
+
 
 ros2 run aidguide_04_esp_bridge esp_reader_uart
 
@@ -107,3 +121,8 @@ Este script incluye:
 * Replanificación inteligente
 * Integración sensor háptico (TFG)
 
+
+
+ros2 topic echo /emergency_stop
+
+DAta true en 
