@@ -86,7 +86,7 @@ class Nav2Supervisor(Node):
         self.state_pub.publish(msg)
 
     def define_waypoints(self):
-        pts = [(-0.5, 0.0), (0.0, 0.0), (0.5, 0.0), (1.0, 0.0), (1.5, 0.0)]
+        pts = [(-0.5, 0.0), (1.0, 0.0), (1.5, 0.0), (2.0, 0.0)]
         #pts = [(-0.5, 0.0), (0.0, 0.0), (0.5, 0.0), (1.0, 0.0), (1.5, 0.0), (2.0 ,0.0)]
         #pts = [(1.0, 0.0), (1.5, 0.15), (2.0, 0.1), (2.3, 0.0)]
         #pts = [(1.0, 0.0),(1.5, 0.0),(2.1, 0.15),(2.3, 0.0)]
@@ -236,7 +236,7 @@ class Nav2Supervisor(Node):
             self.pending_resume_after_spin = False
             self.commands_enabled = False
             self.mission_started = False
-            #next_wp = max(0, self.resume_index)
+    
             next_wp = min(len(self.waypoints)-1, self.resume_index + 1)
             self.get_logger().warn(f'⚠️ Abort → reanudando desde waypoint {next_wp}')
             self.start_mission_from(next_wp)

@@ -31,6 +31,7 @@ source install/setup.bash
 source /opt/ros/jazzy/setup.bash
 source ~/esp_uart_ws/install/setup.bash
 
+sudo chmod 666 /dev/gpiochip0
 
 ros2 run aidguide_04_esp_bridge esp_reader_uart
 
@@ -38,11 +39,6 @@ Comprobar comunicación:
 
 
 ros2 topic echo /esp32/event
-
-
-Si no funciona:
-
-sudo systemctl restart esp32_uart.service
 
 
 ## 🛠️ 3. Compilar workspace
@@ -125,4 +121,19 @@ Este script incluye:
 
 ros2 topic echo /emergency_stop
 
-DAta true en 
+DAta true 
+
+
+## 🚀 Configuracion del robot para que funcione el pin GPIO
+sudo apt update
+sudo apt install python3-lgpio
+
+
+## 🚀 Comprobar el numero de gpiochip 
+ls -l /dev/gpiochip*
+gpioinfo
+
+crw-rw----+ 1 root dialout 254, 4 Mar 28 10:31 /dev/gpiochip4
+
+self.gpio_handle = lgpio.gpiochip_open(4)
+

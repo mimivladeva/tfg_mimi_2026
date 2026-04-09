@@ -102,6 +102,13 @@ echo "✅ Nav2 completamente operativo"
 sleep 2
 
 
+echo "📡 Lanzando monitor de logs de Nav2..."
+
+gnome-terminal -- bash -c "
+source $SETUP
+ros2 topic echo /rosout | grep -E 'controller_server|planner_server|bt_navigator|waypoint_follower|amcl|ERROR|WARN|Failed'
+exec bash
+"
 
 echo "🧠 Lanzando supervisor Nav2..."
 gnome-terminal -- bash -c "
